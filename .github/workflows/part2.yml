@@ -46,10 +46,10 @@ jobs:
       - name: Run Semgrep and generate SARIF report
         run: semgrep scan --config=p/default --sarif --output=semgrep-part2.sarif || echo "{}" > semgrep-part2.sarif
 
-      - name: Move SARIF report to repository folder (Same Folder, Different Names)
+      - name: Move SARIF report to shared repository folder
         run: |
           mkdir -p sarif-reports-part2
-          mv semgrep-part2.sarif sarif-reports-part2/
+          mv semgrep-part2.sarif sarif-reports-part2/semgrep-part2.sarif
 
       - name: Commit and push SARIF report to repository
         run: |
@@ -82,11 +82,11 @@ jobs:
         shell: cmd
         run: snyk test --sarif --output=snyk-part2.sarif || echo "{}" > snyk-part2.sarif
 
-      - name: Move SARIF report to repository folder (Same Folder, Different Names)
+      - name: Move SARIF report to shared repository folder
         shell: cmd
         run: |
           if not exist sarif-reports-part2 mkdir sarif-reports-part2
-          move /Y snyk-part2.sarif sarif-reports-part2\
+          move /Y snyk-part2.sarif sarif-reports-part2\snyk-part2.sarif
 
       - name: Commit and push SARIF report to repository
         shell: cmd
