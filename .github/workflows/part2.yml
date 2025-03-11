@@ -12,8 +12,8 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout Repository (Local)
+        uses: ./.github/actions/checkout  
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to DockerHub
@@ -34,8 +34,8 @@ jobs:
       contents: write
       security-events: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout Repository (Local)
+        uses: ./.github/actions/checkout  
 
       - name: Verify Python and Install Semgrep on Windows
         shell: cmd
@@ -61,8 +61,8 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add sarif-reports-part2\semgrep-part2.sarif
-          git commit -m "Added Semgrep Part 2 SARIF report" || echo "No changes to commit"
-          git push origin master || echo "No changes to push"
+          git commit -m "Added Semgrep Part 2 SARIF report" || exit 0
+          git push origin master || exit 0
 
   sca_scan:
     runs-on: ubuntu-latest  
@@ -70,8 +70,8 @@ jobs:
       contents: write
       security-events: write
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout Repository (Local)
+        uses: ./.github/actions/checkout  
 
       - name: Install Snyk
         run: |
@@ -85,16 +85,14 @@ jobs:
         run: snyk test --sarif --output=snyk-part2-results.sarif || echo "{}" > snyk-part2-results.sarif
 
       - name: Move SARIF report to repository folder
-        shell: bash
         run: |
           mkdir -p sarif-reports-part2
           mv snyk-part2-results.sarif sarif-reports-part2/
 
       - name: Commit and push SARIF report to repository
-        shell: bash
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git add sarif-reports-part2/snyk-part2-results.sarif
-          git commit -m "Added Snyk Part 2 SARIF report" || echo "No changes to commit"
-          git push origin master || echo "No changes to push"
+          git commit -m "Added Snyk Part 2 SARIF report" || exit 0
+          git push origin master || exit 0
