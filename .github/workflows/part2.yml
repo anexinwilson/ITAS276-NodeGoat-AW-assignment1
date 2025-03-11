@@ -37,21 +37,25 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Semgrep
-        shell: bash
+      - name: Install Semgrep on Windows
+        shell: pwsh
         run: |
+          python -m pip install --upgrade pip
           python -m pip install --upgrade semgrep
           semgrep --version
 
       - name: Run Semgrep and generate SARIF report
+        shell: pwsh
         run: semgrep scan --config=p/default --sarif --output=semgrep-part2.sarif || echo "{}" > semgrep-part2.sarif
 
       - name: Move SARIF report to repository folder
+        shell: pwsh
         run: |
-          mkdir -p sarif-reports
-          mv semgrep-part2.sarif sarif-reports/
+          New-Item -ItemType Directory -Force -Path sarif-reports
+          Move-Item -Force semgrep-part2.sarif sarif-reports/
 
       - name: Commit and push SARIF report to repository
+        shell: pwsh
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
@@ -80,11 +84,13 @@ jobs:
         run: snyk test --sarif --output=snyk-part2-results.sarif || echo "{}" > snyk-part2-results.sarif
 
       - name: Move SARIF report to repository folder
+        shell: bash  
         run: |
           mkdir -p sarif-reports
           mv snyk-part2-results.sarif sarif-reports/
 
       - name: Commit and push SARIF report to repository
+        shell: bash 
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
