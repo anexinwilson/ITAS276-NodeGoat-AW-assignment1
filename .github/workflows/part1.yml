@@ -42,8 +42,12 @@ jobs:
           semgrep --version
       - name: Run Semgrep and generate SARIF report
         run: semgrep --config=p/default --sarif --output=semgrep.sarif
+      - name: Upload Semgrep SARIF report to GitHub Security Alerts
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
       - name: Upload Semgrep SARIF report as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  
         with:
           name: semgrep-sarif-report
           path: semgrep.sarif
@@ -63,8 +67,12 @@ jobs:
         run: snyk auth ${{ secrets.SNYK_TOKEN }}
       - name: Run Snyk SCA Scan and generate SARIF report
         run: snyk test --sarif --output=snyk-results.sarif
+      - name: Upload Snyk SARIF report to GitHub Security Alerts
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-results.sarif
       - name: Upload Snyk SARIF report as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  
         with:
           name: snyk-sarif-report
           path: snyk-results.sarif
