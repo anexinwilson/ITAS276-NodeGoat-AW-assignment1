@@ -44,23 +44,18 @@ jobs:
           semgrep --version
 
       - name: Run Semgrep and generate SARIF report
-        run: semgrep scan --config=p/default --sarif --output=semgrep-part2.sarif || echo "{}" > semgrep-part2.sarif
-
-      - name: Move SARIF report to shared repository folder
-        run: |
-          mkdir -p sarif-reports-part2
-          mv semgrep-part2.sarif sarif-reports-part2/semgrep-part2.sarif
+        run: semgrep scan --config=p/default --sarif --output=sarif-reports/semgrep-part2.sarif || echo "{}" > sarif-reports/semgrep-part2.sarif
 
       - name: Commit and push SARIF report to repository
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add sarif-reports-part2/semgrep-part2.sarif
+          git add sarif-reports/semgrep-part2.sarif
           git commit -m "Added Semgrep Part 2 SARIF report" || echo "No changes to commit"
           git push origin master || echo "No changes to push"
 
   sca_scan:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       security-events: write
@@ -68,31 +63,21 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Snyk on Windows
-        shell: cmd
+      - name: Install Snyk
         run: |
           npm install -g snyk
           snyk --version
 
       - name: Authenticate with Snyk
-        shell: cmd
         run: snyk auth ${{ secrets.SNYK_TOKEN }}
 
       - name: Run Snyk SCA Scan and generate SARIF report
-        shell: cmd
-        run: snyk test --sarif --output=snyk-part2.sarif || echo "{}" > snyk-part2.sarif
-
-      - name: Move SARIF report to shared repository folder
-        shell: cmd
-        run: |
-          if not exist sarif-reports-part2 mkdir sarif-reports-part2
-          move /Y snyk-part2.sarif sarif-reports-part2\snyk-part2.sarif
+        run: snyk test --sarif --output=sarif-reports/snyk-part2.sarif || echo "{}" > sarif-reports/snyk-part2.sarif
 
       - name: Commit and push SARIF report to repository
-        shell: cmd
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add sarif-reports-part2\snyk-part2.sarif
+          git add sarif-reports/snyk-part2.sarif
           git commit -m "Added Snyk Part 2 SARIF report" || echo "No changes to commit"
           git push origin master || echo "No changes to push"
