@@ -14,16 +14,13 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-      
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v4
         with:
@@ -32,7 +29,7 @@ jobs:
           tags: anexin/nodegoat:latest
 
   sast_scan:
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       security-events: write
@@ -40,16 +37,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install Semgrep on Ubuntu
+      - name: Install Semgrep
         run: |
           python3 -m pip install --upgrade pip
-          pip install --upgrade semgrep
+          pip install semgrep
           semgrep --version
 
       - name: Run Semgrep and generate SARIF report
         run: semgrep scan --config=p/default --sarif --output=semgrep-part2.sarif || echo "{}" > semgrep-part2.sarif
 
-      - name: Move SARIF report to repository folder
+      - name: Move SARIF report to repository folder (Same Folder, Different Names)
         run: |
           mkdir -p sarif-reports-part2
           mv semgrep-part2.sarif sarif-reports-part2/
@@ -63,7 +60,7 @@ jobs:
           git push origin master || echo "No changes to push"
 
   sca_scan:
-    runs-on: self-hosted 
+    runs-on: self-hosted
     permissions:
       contents: write
       security-events: write
@@ -71,10 +68,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Verify Node.js and Install Snyk
+      - name: Install Snyk on Windows
         shell: cmd
         run: |
-          node --version
           npm install -g snyk
           snyk --version
 
@@ -84,19 +80,19 @@ jobs:
 
       - name: Run Snyk SCA Scan and generate SARIF report
         shell: cmd
-        run: snyk test --sarif --output=snyk-part2-results.sarif || echo "{}" > snyk-part2-results.sarif
+        run: snyk test --sarif --output=snyk-part2.sarif || echo "{}" > snyk-part2.sarif
 
-      - name: Move SARIF report to repository folder
+      - name: Move SARIF report to repository folder (Same Folder, Different Names)
         shell: cmd
         run: |
           if not exist sarif-reports-part2 mkdir sarif-reports-part2
-          move /Y snyk-part2-results.sarif sarif-reports-part2\
+          move /Y snyk-part2.sarif sarif-reports-part2\
 
       - name: Commit and push SARIF report to repository
         shell: cmd
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add sarif-reports-part2\snyk-part2-results.sarif
+          git add sarif-reports-part2\snyk-part2.sarif
           git commit -m "Added Snyk Part 2 SARIF report" || echo "No changes to commit"
           git push origin master || echo "No changes to push"
