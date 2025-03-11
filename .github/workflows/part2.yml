@@ -1,0 +1,84 @@
+name: Part 2 CI workflow
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: anexin/nodegoat:latest
+
+  sast_scan:
+    runs-on: self-hosted  
+    permissions:
+      contents: write  
+      security-events: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Install Semgrep
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install semgrep
+          semgrep --version
+      - name: Run Semgrep and generate SARIF report
+        run: semgrep scan --config=p/default --sarif --output=semgrep.sarif || echo "{}" > semgrep.sarif
+      - name: Move SARIF report to repository folder
+        run: |
+          mkdir -p sarif-reports
+          mv semgrep.sarif sarif-reports/
+      - name: Commit and push SARIF report to repository
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add sarif-reports/semgrep.sarif
+          git commit -m "Added Semgrep SARIF report" || echo "No changes to commit"
+          git push origin master || echo "No changes to push"
+
+  sca_scan:
+    runs-on: ubuntu-latest 
+    permissions:
+      contents: write  
+      security-events: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Install Snyk
+        run: |
+          npm install -g snyk
+          snyk --version
+      - name: Authenticate with Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+      - name: Run Snyk SCA Scan and generate SARIF report
+        run: snyk test --sarif --output=snyk-results.sarif || echo "{}" > snyk-results.sarif
+      - name: Move SARIF report to repository folder
+        run: |
+          mkdir -p sarif-reports
+          mv snyk-results.sarif sarif-reports/
+      - name: Commit and push SARIF report to repository
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add sarif-reports/snyk-results.sarif
+          git commit -m "Added Snyk SARIF report" || echo "No changes to commit"
+          git push origin master || echo "No changes to push"
