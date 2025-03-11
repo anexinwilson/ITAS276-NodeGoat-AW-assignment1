@@ -1,0 +1,86 @@
+name: Part 1 CI workflow
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: anexin/nodegoat:latest
+
+  sast_scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Install Semgrep
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install semgrep
+          semgrep --version
+      - name: Run Semgrep SAST Scan
+        run: semgrep scan --config=auto --sarif > semgrep-report.sarif
+      - name: Check Semgrep SARIF File
+        run: |
+          if [ -s semgrep-report.sarif ]; then
+            echo "SARIF file generated successfully."
+            cat semgrep-report.sarif
+          else
+            echo "SARIF file is empty or not generated."
+            exit 1
+          fi
+      - name: Upload SARIF Report for SAST
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-report.sarif
+
+  sca_scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Install Snyk
+        run: |
+          npm install -g snyk
+          snyk --version
+      - name: Authenticate with Snyk
+        run: snyk auth ${{ secrets.SNYK_TOKEN }}
+      - name: Run Snyk SCA Scan
+        run: snyk test --sarif > snyk-report.sarif
+      - name: Check Snyk SARIF File
+        run: |
+          if [ -s snyk-report.sarif ]; then
+            echo "SARIF file generated successfully."
+            cat snyk-report.sarif
+          else
+            echo "SARIF file is empty or not generated."
+            exit 1
+          fi
+      - name: Upload SARIF Report for SCA
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-report.sarif
