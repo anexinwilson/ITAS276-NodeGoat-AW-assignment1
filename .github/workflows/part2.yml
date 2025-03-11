@@ -1,4 +1,4 @@
-name: Part-2 CI workflow
+name: Part 2 CI workflow
 
 on:
   push:
@@ -38,28 +38,28 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Semgrep on Windows
-        shell: pwsh
+        shell: cmd  
         run: |
           python -m pip install --upgrade pip
           python -m pip install --upgrade semgrep
           semgrep --version
 
       - name: Run Semgrep and generate SARIF report
-        shell: pwsh
+        shell: cmd 
         run: semgrep scan --config=p/default --sarif --output=semgrep-part2.sarif || echo "{}" > semgrep-part2.sarif
 
       - name: Move SARIF report to repository folder
-        shell: pwsh
+        shell: cmd  
         run: |
-          New-Item -ItemType Directory -Force -Path sarif-reports
-          Move-Item -Force semgrep-part2.sarif sarif-reports/
+          if not exist sarif-reports mkdir sarif-reports
+          move /Y semgrep-part2.sarif sarif-reports\
 
       - name: Commit and push SARIF report to repository
-        shell: pwsh
+        shell: cmd
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add sarif-reports/semgrep-part2.sarif
+          git add sarif-reports\semgrep-part2.sarif
           git commit -m "Added Semgrep Part 2 SARIF report" || echo "No changes to commit"
           git push origin master || echo "No changes to push"
 
@@ -90,7 +90,7 @@ jobs:
           mv snyk-part2-results.sarif sarif-reports/
 
       - name: Commit and push SARIF report to repository
-        shell: bash 
+        shell: bash  
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
