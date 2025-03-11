@@ -40,22 +40,13 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install semgrep
           semgrep --version
-      - name: Run Semgrep SAST Scan
-        run: semgrep scan --config=auto --sarif > semgrep-report.sarif
-      - name: Check Semgrep SARIF File
-        run: |
-          if [ -s semgrep-report.sarif ]; then
-            echo "SARIF file generated successfully."
-            cat semgrep-report.sarif
-          else
-            echo "SARIF file is empty or not generated."
-            exit 1
-          fi
-      - name: Upload SARIF Report for SAST
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Run Semgrep and generate SARIF report
+        run: semgrep --config=p/default --sarif --output=semgrep.sarif
+      - name: Upload Semgrep SARIF report as artifact
+        uses: actions/upload-artifact@v3
         with:
-          sarif_file: semgrep-report.sarif
-
+          name: semgrep-sarif-report
+          path: semgrep.sarif
 
   sca_scan:
     runs-on: ubuntu-latest
@@ -70,18 +61,10 @@ jobs:
           snyk --version
       - name: Authenticate with Snyk
         run: snyk auth ${{ secrets.SNYK_TOKEN }}
-      - name: Run Snyk SCA Scan
-        run: snyk test --sarif > snyk-report.sarif
-      - name: Check Snyk SARIF File
-        run: |
-          if [ -s snyk-report.sarif ]; then
-            echo "SARIF file generated successfully."
-            cat snyk-report.sarif
-          else
-            echo "SARIF file is empty or not generated."
-            exit 1
-          fi
-      - name: Upload SARIF Report for SCA
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Run Snyk SCA Scan and generate SARIF report
+        run: snyk test --sarif --output=snyk-results.sarif
+      - name: Upload Snyk SARIF report as artifact
+        uses: actions/upload-artifact@v3
         with:
-          sarif_file: snyk-report.sarif
+          name: snyk-sarif-report
+          path: snyk-results.sarif
