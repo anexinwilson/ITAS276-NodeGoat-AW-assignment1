@@ -1,4 +1,4 @@
-name: Part 1 CI workflow
+name: Part-1 CI workflow
 
 on:
   push:
@@ -55,6 +55,7 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep-report.sarif
+
 
   sca_scan:
     runs-on: ubuntu-latest
