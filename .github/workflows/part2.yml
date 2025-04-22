@@ -1,5 +1,6 @@
 name: Part-2 CI workflow
 
+# This workflow handles Docker build, SAST and SCA scanning with Discord notifications
 on:
   push:
     branches:
@@ -7,28 +8,64 @@ on:
   pull_request:
     branches:
       - master
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
+  # Post a message to Discord when the pipeline starts
+  discord-begin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discord Notification - Pipeline Start
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          username: ${{ github.repository }}
+          avatar-url: https://gravatar.com/avatar/be5d3fe06696117c467f199ddb4f1aed?s=400&d=robohash&r=g
+          embed-title: " Part-2 CI Pipeline Starting"
+          embed-url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          embed-description: "Starting CI workflow for ${{ github.repository }}. [View Run Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          embed-author-name: "${{ github.triggering_actor }}"
+          embed-color: 3066993  # Green color
+
+  # Docker build and push job
   build-and-push:
+    needs: discord-begin
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        
       - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+          
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           tags: anexin/nodegoat:latest
+          
+      - name: Discord Notification - Docker Build Complete
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          username: ${{ github.repository }}
+          avatar-url: https://gravatar.com/avatar/be5d3fe06696117c467f199ddb4f1aed?s=400&d=robohash&r=g
+          embed-title: "Docker Build & Push Complete"
+          embed-url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          embed-description: "Docker image built and pushed to DockerHub successfully: `anexin/nodegoat:latest`"
+          embed-author-name: "${{ github.triggering_actor }}"
+          embed-color: 2123412  # Blue color
 
+  # Static Application Security Testing (SAST) scan
   sast_scan:
+    needs: build-and-push
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -36,16 +73,27 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
+        
       - name: Install Semgrep
         run: |
           python3 -m pip install --upgrade pip
           pip install semgrep
           semgrep --version
-
+          
+      # Create directory for SARIF reports
+      - name: Create SARIF directory
+        run: mkdir -p sarif-reports
+          
       - name: Run Semgrep and generate SARIF report
         run: semgrep scan --config=p/default --sarif --output=sarif-reports/semgrep-part2.sarif || echo "{}" > sarif-reports/semgrep-part2.sarif
-
+        
+      # Upload SARIF as an artifact for easy access
+      - name: Upload SARIF as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-part2-report
+          path: sarif-reports/semgrep-part2.sarif
+          
       - name: Commit and push SARIF report to repository
         run: |
           git config --global user.name "github-actions"
@@ -53,8 +101,27 @@ jobs:
           git add sarif-reports/semgrep-part2.sarif
           git commit -m "Added Semgrep Part 2 SARIF report" || echo "No changes to commit"
           git push origin master || echo "No changes to push"
+          
+      - name: Discord Notification - SAST Scan Complete
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          username: ${{ github.repository }}
+          avatar-url: https://gravatar.com/avatar/be5d3fe06696117c467f199ddb4f1aed?s=400&d=robohash&r=g
+          embed-title: "🔍 SAST Scan Complete"
+          embed-url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          embed-description: |
+            Static Application Security Testing completed.
+            
+            [View SARIF Report](https://github.com/${{ github.repository }}/blob/master/sarif-reports/semgrep-part2.sarif)
+            
+            [Download Report as Artifact](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          embed-author-name: "${{ github.triggering_actor }}"
+          embed-color: 15105570  # Yellow color
 
+  # Software Composition Analysis (SCA) scan
   sca_scan:
+    needs: sast_scan
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -62,18 +129,29 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-
+        
       - name: Install Snyk
         run: |
           npm install -g snyk
           snyk --version
-
+          
       - name: Authenticate with Snyk
         run: snyk auth ${{ secrets.SNYK_TOKEN }}
-
+        
+      # Create directory for SARIF reports
+      - name: Create SARIF directory
+        run: mkdir -p sarif-reports
+        
       - name: Run Snyk SCA Scan and generate SARIF report
         run: snyk test --sarif --output=sarif-reports/snyk-part2.sarif || echo "{}" > sarif-reports/snyk-part2.sarif
-
+        
+      # Upload SARIF as an artifact for easy access
+      - name: Upload SARIF as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-part2-report
+          path: sarif-reports/snyk-part2.sarif
+          
       - name: Commit and push SARIF report to repository
         run: |
           git config --global user.name "github-actions"
@@ -81,3 +159,44 @@ jobs:
           git add sarif-reports/snyk-part2.sarif
           git commit -m "Added Snyk Part 2 SARIF report" || echo "No changes to commit"
           git push origin master || echo "No changes to push"
+          
+      - name: Discord Notification - SCA Scan Complete
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          username: ${{ github.repository }}
+          avatar-url: https://gravatar.com/avatar/be5d3fe06696117c467f199ddb4f1aed?s=400&d=robohash&r=g
+          embed-title: "📦 SCA Scan Complete"
+          embed-url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          embed-description: |
+            Software Composition Analysis completed.
+            
+            [View SARIF Report](https://github.com/${{ github.repository }}/blob/master/sarif-reports/snyk-part2.sarif)
+            
+            [Download Report as Artifact](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          embed-author-name: "${{ github.triggering_actor }}"
+          embed-color: 10181046  # Purple color
+
+  # Final notification when all jobs are complete
+  discord-complete:
+    needs: [build-and-push, sast_scan, sca_scan]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discord Notification - Pipeline Complete
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          username: ${{ github.repository }}
+          avatar-url: https://gravatar.com/avatar/be5d3fe06696117c467f199ddb4f1aed?s=400&d=robohash&r=g
+          embed-title: "Part-2 CI Pipeline Complete"
+          embed-url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          embed-description: |
+            All CI workflow steps have completed successfully.
+            
+            - Docker Build and Push
+            - SAST Scan (Semgrep)
+            -  SCA Scan (Snyk)
+            
+            [View Run Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          embed-author-name: "${{ github.triggering_actor }}"
+          embed-color: 3447003 
